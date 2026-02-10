@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Staff Login - Cyber Ticketing</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="layout" style="max-width:560px;margin:40px auto;grid-template-columns:1fr;">
+    <section class="panel">
+      <h1>Staff Login</h1>
+      <p class="subhead">Admins, Moderators, and Support sign in here.</p>
+      <form id="login-form">
+        <label>Role
+          <select name="role" id="role-select">
+            <option value="admin">Admin</option>
+            <option value="moderator">Moderator</option>
+            <option value="support">Support</option>
+          </select>
+        </label>
+        <label>Username <input name="username" required value="admin" /></label>
+        <label>Password <input type="password" name="password" required value="admin123" /></label>
+        <button class="primary" type="submit">Login to Staff Panel</button>
+      </form>
+      <p class="helper">Demo creds: admin/admin123, moderator/moderator123, support/support123.</p>
+      <p class="helper">Need user login? <a href="user-login.html">Go to User Login</a></p>
+      <div id="err" class="empty-state"></div>
+    </section>
+  </main>
+  <script>
+    const defaults = {
+      admin: { username: 'admin', password: 'admin123' },
+      moderator: { username: 'moderator', password: 'moderator123' },
+      support: { username: 'support', password: 'support123' },
+    };
+    const roleSelect = document.getElementById('role-select');
+    roleSelect.addEventListener('change', () => {
+      const creds = defaults[roleSelect.value];
+      document.querySelector('input[name="username"]').value = creds.username;
+      document.querySelector('input[name="password"]').value = creds.password;
+    });
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const role = fd.get('role');
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: fd.get('username'), password: fd.get('password'), role})
+      });
+      const body = await res.json();
+      if (!res.ok) return (document.getElementById('err').textContent = body.error || 'Login failed');
+      localStorage.setItem('auth_token', body.token);
+      localStorage.setItem('auth_user', JSON.stringify(body.user));
+      location.href = '/index.html';
+    });
+  </script>
+</body>
+</html>

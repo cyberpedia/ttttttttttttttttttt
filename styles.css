@@ -1,0 +1,85 @@
+:root {
+  color-scheme: light;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  background: #f5f7fb;
+  color: #0f172a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px; background: #f5f7fb; }
+h1, h2, h3, p { margin: 0; }
+.site-header, .panel {
+  background: #fff; border-radius: 16px; padding: 20px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+}
+.site-header { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.eyebrow { text-transform: uppercase; font-size: 12px; letter-spacing: .12em; color: #64748b; }
+.subhead { color: #475569; margin-top: 6px; }
+.status-pill { background: #0f172a; color: #fff; border-radius: 999px; padding: 10px 14px; font-size: 12px; }
+.layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 16px; }
+.panel { display: flex; flex-direction: column; gap: 12px; }
+.panel-header p { color: #64748b; font-size: 14px; margin-top: 4px; }
+label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+input, select, textarea, button { font: inherit; }
+input, select, textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; }
+textarea { resize: vertical; }
+.field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.checklist { border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; }
+.chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #e2e8f0; font-size: 12px; }
+.inline { flex-direction: row; align-items: center; }
+.primary, .admin-form button, .chat-form button { border: 0; border-radius: 10px; color: #fff; cursor: pointer; }
+.primary { background: #2563eb; padding: 12px; }
+.ticket-list { display: flex; flex-direction: column; gap: 10px; }
+.ticket-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; }
+.ticket-card.active { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.18); }
+.ticket-meta { display: flex; justify-content: space-between; font-size: 12px; color: #64748b; gap: 8px; }
+.tag { background: #e2e8f0; padding: 3px 8px; border-radius: 999px; font-size: 11px; text-transform: capitalize; }
+.tag.critical { background: #fee2e2; color: #991b1b; }
+.tag.high { background: #fef3c7; color: #92400e; }
+.tag.low { background: #dcfce7; color: #166534; }
+.chat-panel { display: flex; flex-direction: column; gap: 12px; }
+.chat-header { display: flex; justify-content: space-between; gap: 10px; }
+.ticket-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; font-size: 13px; }
+.ticket-details span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; margin-bottom: 3px; }
+.chat-messages { max-height: 240px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.chat-message { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; }
+.chat-message strong { display: block; color: #475569; font-size: 12px; margin-bottom: 4px; }
+.chat-form { display: grid; grid-template-columns: 180px 1fr auto; gap: 8px; }
+.chat-form button { background: #0f172a; padding: 0 16px; }
+.admin-form { display: flex; gap: 10px; align-items: flex-end; }
+.admin-form button { background: #2563eb; padding: 10px 16px; }
+.helper, .empty-state { color: #64748b; font-size: 12px; }
+.notification-item { border-left: 3px solid #2563eb; padding-left: 8px; }
+@media (max-width: 720px) {
+  .site-header { flex-direction: column; }
+  .chat-form { grid-template-columns: 1fr; }
+  .admin-form { flex-direction: column; align-items: stretch; }
+}
+
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.metric-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.metric-card span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.metric-card strong {
+  font-size: 22px;
+}
+
+
+#pm-form {
+  grid-template-columns: 150px 1fr 1fr auto;
+}
