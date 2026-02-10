@@ -1,23 +1,3 @@
-const STORAGE_KEY = "cyber-tickets";
-const TYPES_KEY = "cyber-incident-types";
-
-const defaultTypes = [
-  "Intrusion",
-  "DDoS",
-  "Malware",
-  "Phishing",
-  "Ransomware",
-  "Data Exfiltration",
-  "Account Takeover",
-  "Insider Threat",
-];
-
-const state = {
-  tickets: loadTickets(),
-  incidentTypes: loadTypes(),
-  selectedTicketId: null,
-};
-
 const ticketForm = document.getElementById("ticket-form");
 const ticketList = document.getElementById("ticket-list");
 const incidentTypes = document.getElementById("incident-types");
@@ -31,38 +11,35 @@ const statusSelect = document.getElementById("status-select");
 const ticketDetails = document.getElementById("ticket-details");
 const adminForm = document.getElementById("admin-form");
 
-function loadTickets() {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
+const state = {
+  tickets: [],
+  incidentTypes: [],
+  selectedTicketId: null,
+};
+
+async function requestJson(path, options = {}) {
+  const response = await fetch(path, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || "Request failed");
+  }
+  return response.json();
 }
 
-function loadTypes() {
-  const stored = localStorage.getItem(TYPES_KEY);
-  return stored ? JSON.parse(stored) : [...defaultTypes];
+async function loadIncidentTypes() {
+  state.incidentTypes = await requestJson("/api/incident-types");
+  renderIncidentTypes();
 }
 
-function saveTickets() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tickets));
-}
-
-function saveTypes() {
-  localStorage.setItem(TYPES_KEY, JSON.stringify(state.incidentTypes));
-}
-
-function formatTicketId(sequence) {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const year = now.getFullYear();
-  const suffix = String(sequence).padStart(3, "0");
-  return `${month}-${year}-${suffix}`;
-}
-
-function nextSequence() {
-  const currentMonth = `${new Date().getFullYear()}-${new Date().getMonth()}`;
-  const sequences = state.tickets
-    .filter((ticket) => ticket.createdMonth === currentMonth)
-    .map((ticket) => Number(ticket.sequence));
-  return sequences.length ? Math.max(...sequences) + 1 : 1;
+async function loadTickets() {
+  state.tickets = await requestJson("/api/tickets");
+  renderTickets();
+  if (state.tickets.length > 0) {
+    selectTicket(state.tickets[0].id);
+  }
 }
 
 function renderIncidentTypes() {
@@ -89,7 +66,7 @@ function renderTickets() {
 
   state.tickets
     .slice()
-    .sort((a, b) => b.createdAt - a.createdAt)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .forEach((ticket) => {
       const card = document.createElement("article");
       card.className = "ticket-card";
@@ -98,7 +75,7 @@ function renderTickets() {
       }
       card.innerHTML = `
         <div class="ticket-meta">
-          <span>${ticket.id}</span>
+          <span>${ticket.ticketCode}</span>
           <span>${new Date(ticket.createdAt).toLocaleString()}</span>
         </div>
         <strong>${ticket.summary}</strong>
@@ -120,7 +97,7 @@ function formatStatus(status) {
   return status.replace(/_/g, " ");
 }
 
-function selectTicket(id) {
+async function selectTicket(id) {
   state.selectedTicketId = id;
   const ticket = state.tickets.find((item) => item.id === id);
   if (!ticket) {
@@ -130,22 +107,12 @@ function selectTicket(id) {
   }
   chatPanel.hidden = false;
   chatPlaceholder.hidden = true;
-  chatTicketId.textContent = ticket.id;
+  chatTicketId.textContent = ticket.ticketCode;
   chatTicketSummary.textContent = `${ticket.summary} — Assigned to ${ticket.assignee}`;
   statusSelect.value = ticket.status;
   renderTicketDetails(ticket);
-  renderChat(ticket);
+  await loadMessages(ticket.id);
   renderTickets();
-}
-
-function renderChat(ticket) {
-  chatMessages.innerHTML = "";
-  ticket.chat.forEach((entry) => {
-    const message = document.createElement("div");
-    message.className = "chat-message";
-    message.innerHTML = `<strong>${entry.author} · ${new Date(entry.timestamp).toLocaleString()}</strong>${entry.message}`;
-    chatMessages.appendChild(message);
-  });
 }
 
 function renderTicketDetails(ticket) {
@@ -161,7 +128,22 @@ function renderTicketDetails(ticket) {
   `;
 }
 
-function handleTicketSubmit(event) {
+async function loadMessages(ticketId) {
+  const messages = await requestJson(`/api/tickets/${ticketId}/messages`);
+  renderChat(messages);
+}
+
+function renderChat(messages) {
+  chatMessages.innerHTML = "";
+  messages.forEach((entry) => {
+    const message = document.createElement("div");
+    message.className = "chat-message";
+    message.innerHTML = `<strong>${entry.author} · ${new Date(entry.timestamp).toLocaleString()}</strong>${entry.message}`;
+    chatMessages.appendChild(message);
+  });
+}
+
+async function handleTicketSubmit(event) {
   event.preventDefault();
   const formData = new FormData(ticketForm);
   const incidentSelection = formData.getAll("incidentType");
@@ -171,13 +153,7 @@ function handleTicketSubmit(event) {
     types.push(other);
   }
 
-  const sequence = nextSequence();
-  const createdMonth = `${new Date().getFullYear()}-${new Date().getMonth()}`;
-  const ticket = {
-    id: formatTicketId(sequence),
-    sequence,
-    createdMonth,
-    createdAt: Date.now(),
+  const payload = {
     reportedDate: formData.get("reportedDate"),
     reportedTime: formData.get("reportedTime"),
     riskLevel: formData.get("riskLevel"),
@@ -191,77 +167,85 @@ function handleTicketSubmit(event) {
       .flat()
       .map((file) => file.name),
     assignee: formData.get("assignee"),
-    status: "open",
-    chat: [
-      {
-        author: "System",
-        message: `Ticket created and routed to ${formData.get("assignee")}.`,
-        timestamp: Date.now(),
-      },
-    ],
   };
 
-  state.tickets.push(ticket);
-  saveTickets();
+  const ticket = await requestJson("/api/tickets", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  state.tickets.unshift(ticket);
   ticketForm.reset();
   renderTickets();
-  selectTicket(ticket.id);
+  await selectTicket(ticket.id);
 }
 
-function handleChatSubmit(event) {
+async function handleChatSubmit(event) {
   event.preventDefault();
-  const ticket = state.tickets.find((item) => item.id === state.selectedTicketId);
-  if (!ticket) {
+  const ticketId = state.selectedTicketId;
+  if (!ticketId) {
     return;
   }
   const formData = new FormData(chatForm);
-  ticket.chat.push({
-    author: formData.get("author"),
-    message: formData.get("message"),
-    timestamp: Date.now(),
+  await requestJson(`/api/tickets/${ticketId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({
+      author: formData.get("author"),
+      message: formData.get("message"),
+    }),
   });
-  saveTickets();
   chatForm.reset();
-  renderChat(ticket);
+  await loadMessages(ticketId);
 }
 
-function handleStatusChange(event) {
-  const ticket = state.tickets.find((item) => item.id === state.selectedTicketId);
-  if (!ticket) {
+async function handleStatusChange(event) {
+  const ticketId = state.selectedTicketId;
+  if (!ticketId) {
     return;
   }
-  ticket.status = event.target.value;
-  ticket.chat.push({
-    author: "System",
-    message: `Status updated to ${formatStatus(ticket.status)}.`,
-    timestamp: Date.now(),
+  const updated = await requestJson(`/api/tickets/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: event.target.value }),
   });
-  saveTickets();
+  const index = state.tickets.findIndex((ticket) => ticket.id === ticketId);
+  if (index >= 0) {
+    state.tickets[index] = updated;
+  }
   renderTickets();
-  renderChat(ticket);
+  await loadMessages(ticketId);
 }
 
-function handleAdminSubmit(event) {
+async function handleAdminSubmit(event) {
   event.preventDefault();
   const formData = new FormData(adminForm);
   const newType = formData.get("newType").trim();
-  if (!newType || state.incidentTypes.includes(newType)) {
+  if (!newType) {
     return;
   }
-  state.incidentTypes.push(newType);
-  saveTypes();
-  adminForm.reset();
-  renderIncidentTypes();
+  try {
+    await requestJson("/api/incident-types", {
+      method: "POST",
+      body: JSON.stringify({ name: newType }),
+    });
+    adminForm.reset();
+    await loadIncidentTypes();
+  } catch (error) {
+    alert(error.message);
+  }
 }
 
-renderIncidentTypes();
-renderTickets();
-
-if (state.tickets.length > 0) {
-  selectTicket(state.tickets[0].id);
+async function init() {
+  try {
+    await loadIncidentTypes();
+    await loadTickets();
+  } catch (error) {
+    ticketList.innerHTML = `<p class="empty-state">${error.message}</p>`;
+  }
 }
 
 ticketForm.addEventListener("submit", handleTicketSubmit);
 chatForm.addEventListener("submit", handleChatSubmit);
 statusSelect.addEventListener("change", handleStatusChange);
 adminForm.addEventListener("submit", handleAdminSubmit);
+
+init();

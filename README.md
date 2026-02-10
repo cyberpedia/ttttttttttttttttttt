@@ -1,15 +1,29 @@
-# Cyber Incident Ticketing System (Front-End Demo)
+# Cyber Incident Ticketing System
 
-A production-style, static front-end prototype for a cyber incident ticketing workflow. It supports ticket creation with structured incident details, configurable incident types, responder chat, and status changes. Data is stored locally in the browser for demo/testing.
+A production-style, full-stack prototype for cyber incident ticketing. The app includes structured ticket intake, admin-configurable incident type checklists, status tracking, and responder chat. Data is persisted in a local SQLite database for testing.
+
+## Stack
+
+- Front-end: HTML, CSS, Vanilla JS
+- Back-end: Flask (Python)
+- Database: SQLite
 
 ## Requirements
 
-- Python 3 (for a simple static server)
+- Python 3.10+
+
+## Setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
 ## Run locally
 
 ```bash
-python -m http.server 8000
+python server.py
 ```
 
 Then open:
@@ -20,6 +34,6 @@ http://127.0.0.1:8000/
 
 ## Notes
 
-- This is a static front-end demo; it does not include a backend API.
-- Tickets and incident types are persisted in `localStorage`.
+- Data is stored in `tickets.db` in the project root.
+- This demo supports creating, updating, and chatting on tickets with a single local user.
 
