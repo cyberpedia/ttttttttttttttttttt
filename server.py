@@ -60,6 +60,7 @@ def init_db() -> None:
                     username TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
                     role TEXT NOT NULL CHECK (role IN ('admin', 'moderator', 'support', 'user')),
+                    role TEXT NOT NULL CHECK (role IN ('admin', 'user')),
                     created_at TIMESTAMP NOT NULL DEFAULT NOW()
                 )
                 """
@@ -339,6 +340,7 @@ class Handler(BaseHTTPRequestHandler):
         password = str(data.get("password", "")).strip()
         role = str(data.get("role", "user")).strip()
         if role not in ["admin", "moderator", "support", "user"]:
+        if role not in ["admin", "user"]:
             return json_send(self, {"error": "Invalid role."}, 400)
         if not username or not password:
             return json_send(self, {"error": "username and password are required."}, 400)
@@ -390,6 +392,7 @@ class Handler(BaseHTTPRequestHandler):
     def handle_post_incident_types(self):
         user = auth_user(self)
         if not user or user["role"] not in {"admin", "moderator", "support"}:
+        if not user or user["role"] != "admin":
             return json_send(self, {"error": "Admin authorization required."}, 403)
         data = parse_body(self)
         name = str(data.get("name", "")).strip()
@@ -579,6 +582,7 @@ class Handler(BaseHTTPRequestHandler):
             }
             for r in rows
         ])
+        json_send(self, [{**r, "timestamp": r["timestamp"].isoformat()} for r in rows])
 
     def handle_post_private_message(self):
         user = auth_user(self)
@@ -595,6 +599,8 @@ class Handler(BaseHTTPRequestHandler):
         attachments = [str(name).strip() for name in attachments if str(name).strip()]
         if not sender or not recipient or (not message and not attachments):
             return json_send(self, {"error": "sender, recipient, and either message or attachments are required."}, 400)
+        if not sender or not recipient or not message:
+            return json_send(self, {"error": "sender, recipient, and message are required."}, 400)
 
         timestamp = datetime.utcnow()
         with db_conn() as conn:
@@ -617,6 +623,14 @@ class Handler(BaseHTTPRequestHandler):
             "attachments": attachments,
             "timestamp": timestamp.isoformat(),
         }
+                    INSERT INTO private_messages (sender, recipient, target_type, message, timestamp)
+                    VALUES (%s, %s, %s, %s, %s) RETURNING id
+                    """,
+                    (sender, recipient, target_type, message, timestamp),
+                )
+                msg_id = cur.fetchone()["id"]
+            conn.commit()
+        payload = {"id": msg_id, "sender": sender, "recipient": recipient, "targetType": target_type, "message": message, "timestamp": timestamp.isoformat()}
         event_publish("private_message_created", payload)
         json_send(self, payload, 201)
 
@@ -694,6 +708,7 @@ def run() -> None:
     server = ThreadingHTTPServer(("0.0.0.0", 8000), Handler)
     print("Server running on http://0.0.0.0:8000")
     print("Default accounts: admin/admin123, moderator/moderator123, support/support123, user/user123")
+    print("Default accounts: admin/admin123 and user/user123")
     print(f"Database: {DATABASE_URL}")
     server.serve_forever()
 

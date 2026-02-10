@@ -20,6 +20,14 @@
         </div>
       </form>
       <p class="helper">Need staff login? <a href="admin-login.html">Go to Staff Login</a></p>
+      <h1>User Login</h1>
+      <p class="subhead">Users/Teams sign in here.</p>
+      <form id="login-form">
+        <label>Username <input name="username" required value="user" /></label>
+        <label>Password <input type="password" name="password" required value="user123" /></label>
+        <button class="primary" type="submit">Login as User</button>
+      </form>
+      <p class="helper">Need admin login? <a href="admin-login.html">Go to Admin Login</a></p>
       <div id="err" class="empty-state"></div>
     </section>
   </main>
@@ -47,6 +55,20 @@
 
     document.getElementById('login-form').addEventListener('submit', async (e) => { e.preventDefault(); await loginOrRegister('login'); });
     document.getElementById('register-btn').addEventListener('click', async () => { await loginOrRegister('register'); });
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: fd.get('username'), password: fd.get('password'), role: 'user'})
+      });
+      const body = await res.json();
+      if (!res.ok) return (document.getElementById('err').textContent = body.error || 'Login failed');
+      localStorage.setItem('auth_token', body.token);
+      localStorage.setItem('auth_user', JSON.stringify(body.user));
+      location.href = '/index.html';
+    });
   </script>
 </body>
 </html>
