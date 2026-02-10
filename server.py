@@ -59,7 +59,7 @@ def init_db() -> None:
                     id SERIAL PRIMARY KEY,
                     username TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
-                    role TEXT NOT NULL CHECK (role IN ('admin', 'moderator', 'support', 'user')),
+                    role TEXT NOT NULL CHECK (role IN ('admin', 'user')),
                     created_at TIMESTAMP NOT NULL DEFAULT NOW()
                 )
                 """
@@ -153,18 +153,6 @@ def seed_data() -> None:
                     "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, 'admin')",
                     ("admin", hash_password("admin123")),
                 )
-            cur.execute("SELECT id FROM users WHERE username = %s", ("moderator",))
-            if not cur.fetchone():
-                cur.execute(
-                    "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, 'moderator')",
-                    ("moderator", hash_password("moderator123")),
-                )
-            cur.execute("SELECT id FROM users WHERE username = %s", ("support",))
-            if not cur.fetchone():
-                cur.execute(
-                    "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, 'support')",
-                    ("support", hash_password("support123")),
-                )
             cur.execute("SELECT id FROM users WHERE username = %s", ("user",))
             if not cur.fetchone():
                 cur.execute(
@@ -253,8 +241,6 @@ class Handler(BaseHTTPRequestHandler):
             return self.handle_stream()
         if path == "/api/auth/me":
             return self.handle_auth_me()
-        if path == "/api/dashboard":
-            return self.handle_dashboard()
         if path == "/api/incident-types":
             return self.handle_get_incident_types()
         if path == "/api/tickets":
@@ -331,7 +317,7 @@ class Handler(BaseHTTPRequestHandler):
         username = str(data.get("username", "")).strip()
         password = str(data.get("password", "")).strip()
         role = str(data.get("role", "user")).strip()
-        if role not in ["admin", "moderator", "support", "user"]:
+        if role not in ["admin", "user"]:
             return json_send(self, {"error": "Invalid role."}, 400)
         if not username or not password:
             return json_send(self, {"error": "username and password are required."}, 400)
@@ -382,7 +368,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def handle_post_incident_types(self):
         user = auth_user(self)
-        if not user or user["role"] not in {"admin", "moderator", "support"}:
+        if not user or user["role"] != "admin":
             return json_send(self, {"error": "Admin authorization required."}, 403)
         data = parse_body(self)
         name = str(data.get("name", "")).strip()
@@ -620,50 +606,13 @@ class Handler(BaseHTTPRequestHandler):
                 if q in clients:
                     clients.remove(q)
 
-    def handle_dashboard(self):
-        user = auth_user(self)
-        if not user:
-            return json_send(self, {"error": "Unauthorized."}, 401)
-
-        with db_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) c FROM tickets")
-                total_tickets = cur.fetchone()["c"]
-                cur.execute("SELECT COUNT(*) c FROM tickets WHERE status IN ('open','in_review','reopened')")
-                open_tickets = cur.fetchone()["c"]
-                cur.execute("SELECT COUNT(*) c FROM tickets WHERE status IN ('resolved','closed')")
-                closed_tickets = cur.fetchone()["c"]
-                cur.execute("SELECT COUNT(*) c FROM private_messages")
-                total_pms = cur.fetchone()["c"]
-                cur.execute("SELECT ticket_code, summary, risk_level, status, assignee FROM tickets ORDER BY created_at DESC LIMIT 8")
-                recent = cur.fetchall()
-
-        role = user["role"]
-        queue = [dict(x) for x in recent if (role in {"admin", "moderator", "support"} or x["assignee"] == user["username"])]
-        payload = {
-            "role": role,
-            "metrics": {
-                "totalTickets": total_tickets,
-                "activeTickets": open_tickets,
-                "resolvedTickets": closed_tickets,
-                "totalPrivateMessages": total_pms,
-            },
-            "queue": queue,
-            "permissions": {
-                "canManageIncidentTypes": role in {"admin", "moderator", "support"},
-                "canModerate": role in {"admin", "moderator"},
-                "canSupport": role in {"admin", "support"},
-            },
-        }
-        json_send(self, payload)
-
 
 def run() -> None:
     init_db()
     seed_data()
     server = ThreadingHTTPServer(("0.0.0.0", 8000), Handler)
     print("Server running on http://0.0.0.0:8000")
-    print("Default accounts: admin/admin123, moderator/moderator123, support/support123, user/user123")
+    print("Default accounts: admin/admin123 and user/user123")
     print(f"Database: {DATABASE_URL}")
     server.serve_forever()
 

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Staff Login - Cyber Ticketing</title>
+  <title>Admin Login - Cyber Ticketing</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -24,6 +25,13 @@
         <button class="primary" type="submit">Login to Staff Panel</button>
       </form>
       <p class="helper">Demo creds: admin/admin123, moderator/moderator123, support/support123.</p>
+      <h1>Admin Login</h1>
+      <p class="subhead">Admins/Moderators/Supports sign in here.</p>
+      <form id="login-form">
+        <label>Username <input name="username" required value="admin" /></label>
+        <label>Password <input type="password" name="password" required value="admin123" /></label>
+        <button class="primary" type="submit">Login as Admin</button>
+      </form>
       <p class="helper">Need user login? <a href="user-login.html">Go to User Login</a></p>
       <div id="err" class="empty-state"></div>
     </section>
@@ -49,6 +57,13 @@
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({username: fd.get('username'), password: fd.get('password'), role})
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: fd.get('username'), password: fd.get('password'), role: 'admin'})
       });
       const body = await res.json();
       if (!res.ok) return (document.getElementById('err').textContent = body.error || 'Login failed');

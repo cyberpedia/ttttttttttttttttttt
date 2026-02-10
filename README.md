@@ -16,6 +16,14 @@ A full-featured SOC ticketing platform prototype with role-based panels for:
 - Incident type management (staff roles)
 - Ticket chat and lifecycle updates
 - Private messaging (staff ↔ users/teams)
+# Cyber Incident Ticketing System (PostgreSQL + Realtime)
+
+This implementation is full-stack with:
+- PostgreSQL database (requested)
+- Admin and user login pages
+- Ticket creation / lifecycle / chat
+- Admin configurable incident types
+- Private messaging (admin/mod/support ↔ users/teams)
 - Realtime notifications via SSE
 
 ## Login pages
@@ -28,6 +36,11 @@ A full-featured SOC ticketing platform prototype with role-based panels for:
 - admin / admin123
 - moderator / moderator123
 - support / support123
+- Admin login: `/admin-login.html`
+- User login: `/user-login.html`
+
+Default seeded accounts:
+- admin / admin123
 - user / user123
 
 ## Requirements
@@ -36,6 +49,9 @@ A full-featured SOC ticketing platform prototype with role-based panels for:
 - PostgreSQL 13+
 
 ## Configure DB
+## Configure database
+
+Set `DATABASE_URL` (or use default):
 
 ```bash
 export DATABASE_URL='postgresql://postgres:postgres@localhost:5432/cybertickets'
