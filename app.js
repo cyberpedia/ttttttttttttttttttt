@@ -325,6 +325,10 @@ async function loadPrivateMessages() {
   messages.forEach((m) => {
     const n = document.createElement("div");
     n.className = "chat-message";
+    const attachments = Array.isArray(m.attachments) && m.attachments.length
+      ? `<div class="helper">Attachments: ${m.attachments.join(", ")}</div>`
+      : "";
+    n.innerHTML = `<strong>${m.sender} → ${m.recipient} · ${new Date(m.timestamp).toLocaleString()}</strong>${m.message || "<em>[Attachment only]</em>"}${attachments}`;
     n.innerHTML = `<strong>${m.sender} → ${m.recipient} · ${new Date(m.timestamp).toLocaleString()}</strong>${m.message}`;
     pmMessages.appendChild(n);
   });
@@ -399,6 +403,11 @@ pmForm.addEventListener("submit", async (event) => {
   const sender = fd.get("sender").trim();
   const message = fd.get("message").trim();
   const recipient = pmPeer.value.trim();
+  const attachments = Array.from(fd.getAll("attachments")).flat().map((f) => f?.name).filter(Boolean);
+  if (!sender || !recipient || (!message && attachments.length === 0)) return;
+  await requestJson("/api/private-messages", {
+    method: "POST",
+    body: JSON.stringify({ sender, recipient, targetType: "user", message, attachments }),
   if (!sender || !recipient || !message) return;
   await requestJson("/api/private-messages", {
     method: "POST",

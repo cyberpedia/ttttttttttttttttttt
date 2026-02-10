@@ -208,11 +208,14 @@
         <div id="pm-messages" class="chat-messages"></div>
         <form id="pm-form" class="chat-form">
           <input type="text" name="sender" placeholder="Sender name" required />
+          <input type="text" name="message" placeholder="Type private message (optional if file attached)" />
+          <input type="file" name="attachments" multiple />
           <input type="text" name="message" placeholder="Type private message" required />
           <button type="submit">Send PM</button>
         </form>
       </section>
 
+      <section class="panel" id="admin-panel" aria-labelledby="admin-title">
       <section class="panel" aria-labelledby="admin-title">
         <div class="panel-header">
           <h2 id="admin-title">Admin Configuration</h2>
