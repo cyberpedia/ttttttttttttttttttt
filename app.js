@@ -36,6 +36,11 @@ const adminForm = document.getElementById("admin-form");
 const notifications = document.getElementById("notifications");
 const userPill = document.getElementById("user-pill");
 const logoutBtn = document.getElementById("logout-btn");
+const dashboardMetrics = document.getElementById("dashboard-metrics");
+const dashboardQueue = document.getElementById("dashboard-queue");
+const dashboardSubtitle = document.getElementById("dashboard-subtitle");
+const adminPanel = document.getElementById("admin-panel");
+const pmPanel = document.getElementById("pm-panel");
 
 const pmMessages = document.getElementById("pm-messages");
 const pmForm = document.getElementById("pm-form");
@@ -54,6 +59,7 @@ function goLogin() {
   if (hint) {
     try {
       const user = JSON.parse(hint);
+      location.href = ["admin","moderator","support"].includes(user.role) ? "/admin-login.html" : "/user-login.html";
       location.href = user.role === "admin" ? "/admin-login.html" : "/user-login.html";
       return;
     } catch {}
@@ -350,6 +356,7 @@ ticketForm.addEventListener("submit", async (event) => {
 
   ticketForm.reset();
   await loadTickets();
+  await requestJson("/api/dashboard").then(renderDashboard);
   await selectTicket(ticket.id);
 });
 
@@ -372,6 +379,7 @@ statusSelect.addEventListener("change", async (event) => {
     body: JSON.stringify({ status: event.target.value }),
   });
   await loadTickets();
+  await requestJson("/api/dashboard").then(renderDashboard);
   await loadMessages(state.selectedTicketId);
 });
 
@@ -400,6 +408,33 @@ pmForm.addEventListener("submit", async (event) => {
   await loadPrivateMessages();
 });
 
+
+function renderDashboard(data) {
+  const m = data.metrics || {};
+  dashboardMetrics.innerHTML = `
+    <div class="metric-card"><span>Total Tickets</span><strong>${m.totalTickets ?? 0}</strong></div>
+    <div class="metric-card"><span>Active</span><strong>${m.activeTickets ?? 0}</strong></div>
+    <div class="metric-card"><span>Resolved</span><strong>${m.resolvedTickets ?? 0}</strong></div>
+    <div class="metric-card"><span>Private Messages</span><strong>${m.totalPrivateMessages ?? 0}</strong></div>
+  `;
+
+  dashboardQueue.innerHTML = "";
+  if (!data.queue?.length) {
+    dashboardQueue.innerHTML = '<p class="empty-state">No items in queue.</p>';
+  } else {
+    data.queue.forEach((item) => {
+      const row = document.createElement('article');
+      row.className = 'ticket-card';
+      row.innerHTML = `<div class="ticket-meta"><span>${item.ticket_code}</span><span class="tag ${item.risk_level}">${item.risk_level}</span></div><strong>${item.summary}</strong><div class="ticket-meta"><span>${item.assignee}</span><span>${item.status}</span></div>`;
+      dashboardQueue.appendChild(row);
+    });
+  }
+
+  dashboardSubtitle.textContent = `Role: ${data.role}`;
+  adminPanel.style.display = data.permissions?.canManageIncidentTypes ? '' : 'none';
+  pmPanel.style.display = '';
+}
+
 logoutBtn.addEventListener("click", () => {
   localStorage.removeItem("auth_token");
   localStorage.removeItem("auth_user");
@@ -410,6 +445,8 @@ async function init() {
   if (!getToken()) return goLogin();
   state.user = await requestJson("/api/auth/me");
   userPill.textContent = `Signed in: ${state.user.username} (${state.user.role})`;
+  const dashboard = await requestJson("/api/dashboard");
+  renderDashboard(dashboard);
   await loadIncidentTypes();
   await loadTickets();
   await loadPrivateMessages();

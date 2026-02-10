@@ -18,6 +18,18 @@
 
     <section class="panel">
       <div class="panel-header">
+        <h2 id="dashboard-title">Dashboard</h2>
+        <p id="dashboard-subtitle">Role-based operational overview.</p>
+      </div>
+      <div id="dashboard-metrics" class="dashboard-metrics"></div>
+      <div>
+        <h3 style="margin-bottom:8px;">Role Queue</h3>
+        <div id="dashboard-queue" class="ticket-list"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
         <h2>Live Notifications</h2>
         <p>Real-time system events for admins, moderators, supports, and users.</p>
       </div>
@@ -183,6 +195,7 @@
         </div>
       </section>
 
+      <section class="panel" id="pm-panel">
       <section class="panel">
         <div class="panel-header">
           <h2>Private Messages (Admin/Moderators/Supports ↔ Users/Teams)</h2>
