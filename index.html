@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cyber Incident Ticketing</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div>
+        <p class="eyebrow">Security Operations Center</p>
+        <h1>Cyber Incident Ticketing System</h1>
+        <p class="subhead">Create, triage, and resolve cyber incidents with structured workflows.</p>
+      </div>
+      <div><div class="status-pill" id="user-pill">Real-time event stream enabled</div><button id="logout-btn" style="margin-top:8px;">Logout</button></div>
+    </header>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2 id="dashboard-title">Dashboard</h2>
+        <p id="dashboard-subtitle">Role-based operational overview.</p>
+      </div>
+      <div id="dashboard-metrics" class="dashboard-metrics"></div>
+      <div>
+        <h3 style="margin-bottom:8px;">Role Queue</h3>
+        <div id="dashboard-queue" class="ticket-list"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Live Notifications</h2>
+        <p>Real-time system events for admins, moderators, supports, and users.</p>
+      </div>
+      <div id="notifications" class="chat-messages"></div>
+    </section>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="ticket-form-title">
+        <div class="panel-header">
+          <h2 id="ticket-form-title">Create Ticket</h2>
+          <p>Ticket ID auto-generates as <strong>MM-YYYY-###</strong>.</p>
+        </div>
+        <form id="ticket-form">
+          <div class="field-row">
+            <label>Date reported <input type="date" name="reportedDate" required /></label>
+            <label>Time reported <input type="time" name="reportedTime" required /></label>
+          </div>
+          <label>
+            Risk level
+            <select name="riskLevel" required>
+              <option value="">Select level</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select>
+          </label>
+          <label>Incident summary <input type="text" name="summary" placeholder="Short headline" required /></label>
+
+          <fieldset class="checklist">
+            <legend>Incident types (select all that apply)</legend>
+            <div id="incident-types" class="chip-grid" aria-live="polite"></div>
+            <label class="inline">Other (not listed) <input type="text" name="incidentOther" placeholder="Describe other incident" /></label>
+          </fieldset>
+
+          <div class="field-row">
+            <label>Source IP / Apparent origin <input type="text" name="sourceIp" required /></label>
+            <label>Destination IP / Target <input type="text" name="destinationIp" required /></label>
+          </div>
+
+          <label>Potentially compromised systems (optional) <textarea name="compromisedSystems" rows="2"></textarea></label>
+          <label>Incident details <textarea name="details" rows="4" required></textarea></label>
+          <label>Attachments <input type="file" name="attachments" multiple /><span class="helper">Files are stored as references for this demo.</span></label>
+
+          <label>
+            Assign to available responder
+            <select name="assignee" required>
+              <option value="">Select responder</option>
+              <option value="SOC Lead">SOC Lead</option>
+              <option value="Incident Commander">Incident Commander</option>
+              <option value="Threat Analyst">Threat Analyst</option>
+              <option value="IT Support">IT Support</option>
+            </select>
+          </label>
+
+          <button type="submit" class="primary">Create &amp; Notify Responders</button>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="ticket-list-title">
+        <div class="panel-header">
+          <h2 id="ticket-list-title">Active Tickets</h2>
+          <p>Track status, update, close, or reopen.</p>
+        </div>
+        <div id="ticket-list" class="ticket-list" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="chat-title">
+        <div class="panel-header">
+          <h2 id="chat-title">Ticket Thread</h2>
+          <p>Back-and-forth updates until resolution.</p>
+        </div>
+        <div id="chat-placeholder" class="empty-state">Select a ticket to view conversation timeline.</div>
+        <div id="chat-panel" class="chat-panel" hidden>
+          <div class="chat-header">
+            <div>
+              <h3 id="chat-ticket-id">Ticket</h3>
+              <p id="chat-ticket-summary"></p>
+            </div>
+            <label>
+              Status
+              <select id="status-select">
+                <option value="open">Open</option>
+                <option value="in_review">In review</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+                <option value="reopened">Reopened</option>
+              </select>
+            </label>
+          </div>
+          <div id="ticket-details" class="ticket-details"></div>
+          <div id="chat-messages" class="chat-messages"></div>
+          <form id="chat-form" class="chat-form">
+            <input type="text" name="author" placeholder="Your name" required />
+            <input type="text" name="message" placeholder="Type update or response" required />
+            <button type="submit">Send</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel" id="pm-panel">
+        <div class="panel-header">
+          <h2>Private Messages (Admin/Moderators/Supports ↔ Users/Teams)</h2>
+          <p>Direct secure conversation separate from ticket threads.</p>
+        </div>
+        <form id="pm-context-form" class="field-row">
+          <label>Me <input type="text" id="pm-me" value="SOC Lead" required /></label>
+          <label>Peer (user/team/admin) <input type="text" id="pm-peer" value="Finance Team" required /></label>
+        </form>
+        <div id="pm-messages" class="chat-messages"></div>
+        <form id="pm-form" class="chat-form">
+          <input type="text" name="sender" placeholder="Sender name" required />
+          <input type="text" name="message" placeholder="Type private message" required />
+          <button type="submit">Send PM</button>
+        </form>
+      </section>
+
+      <section class="panel" id="admin-panel" aria-labelledby="admin-title">
+        <div class="panel-header">
+          <h2 id="admin-title">Admin Configuration</h2>
+          <p>Customize incident checklist options in real time.</p>
+        </div>
+        <form id="admin-form" class="admin-form">
+          <label>Add incident type <input type="text" name="newType" placeholder="e.g., Insider Threat" required /></label>
+          <button type="submit">Add Type</button>
+        </form>
+        <div class="helper">Incident types are persisted in PostgreSQL.</div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
