@@ -24,6 +24,9 @@
       <div id="notifications" class="chat-messages"></div>
     </section>
 
+      <div class="status-pill">Production-ready flow demo</div>
+    </header>
+
     <main class="layout">
       <section class="panel" aria-labelledby="ticket-form-title">
         <div class="panel-header">
@@ -34,6 +37,14 @@
           <div class="field-row">
             <label>Date reported <input type="date" name="reportedDate" required /></label>
             <label>Time reported <input type="time" name="reportedTime" required /></label>
+            <label>
+              Date reported
+              <input type="date" name="reportedDate" required />
+            </label>
+            <label>
+              Time reported
+              <input type="time" name="reportedTime" required />
+            </label>
           </div>
           <label>
             Risk level
@@ -45,6 +56,10 @@
             </select>
           </label>
           <label>Incident summary <input type="text" name="summary" placeholder="Short headline" required /></label>
+          <label>
+            Incident summary
+            <input type="text" name="summary" placeholder="Short headline" required />
+          </label>
 
           <fieldset class="checklist">
             <legend>Incident types (select all that apply)</legend>
@@ -60,6 +75,38 @@
           <label>Potentially compromised systems (optional) <textarea name="compromisedSystems" rows="2"></textarea></label>
           <label>Incident details <textarea name="details" rows="4" required></textarea></label>
           <label>Attachments <input type="file" name="attachments" multiple /><span class="helper">Files are stored as references for this demo.</span></label>
+            <label class="inline">
+              Other (not listed)
+              <input type="text" name="incidentOther" placeholder="Describe other incident" />
+            </label>
+          </fieldset>
+
+          <div class="field-row">
+            <label>
+              Source IP / Apparent origin
+              <input type="text" name="sourceIp" placeholder="e.g., 192.168.10.14" required />
+            </label>
+            <label>
+              Destination IP / Target
+              <input type="text" name="destinationIp" placeholder="e.g., 10.0.0.25" required />
+            </label>
+          </div>
+
+          <label>
+            Potentially compromised systems (optional)
+            <textarea name="compromisedSystems" rows="2" placeholder="List hostnames, assets, or services"></textarea>
+          </label>
+
+          <label>
+            Incident details
+            <textarea name="details" rows="4" placeholder="Provide full timeline, indicators, and observations" required></textarea>
+          </label>
+
+          <label>
+            Attachments
+            <input type="file" name="attachments" multiple />
+            <span class="helper">Files are stored as references for this demo.</span>
+          </label>
 
           <label>
             Assign to available responder
@@ -90,6 +137,12 @@
           <p>Back-and-forth updates until resolution.</p>
         </div>
         <div id="chat-placeholder" class="empty-state">Select a ticket to view conversation timeline.</div>
+          <h2 id="chat-title">Responder Chat</h2>
+          <p>Collaborate with admins, moderators, and support until resolution.</p>
+        </div>
+        <div id="chat-placeholder" class="empty-state">
+          Select a ticket to view the conversation timeline.
+        </div>
         <div id="chat-panel" class="chat-panel" hidden>
           <div class="chat-header">
             <div>
@@ -108,6 +161,19 @@
             </label>
           </div>
           <div id="ticket-details" class="ticket-details"></div>
+            <div class="status-controls">
+              <label>
+                Status
+                <select id="status-select">
+                  <option value="open">Open</option>
+                  <option value="in_review">In review</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                  <option value="reopened">Reopened</option>
+                </select>
+              </label>
+            </div>
+          </div>
           <div id="chat-messages" class="chat-messages"></div>
           <form id="chat-form" class="chat-form">
             <input type="text" name="author" placeholder="Your name" required />
@@ -144,6 +210,13 @@
           <button type="submit">Add Type</button>
         </form>
         <div class="helper">Incident types are persisted in PostgreSQL.</div>
+          <label>
+            Add incident type
+            <input type="text" name="newType" placeholder="e.g., Insider Threat" required />
+          </label>
+          <button type="submit">Add Type</button>
+        </form>
+        <div class="helper">Incident types are stored locally for this demo.</div>
       </section>
     </main>
 
