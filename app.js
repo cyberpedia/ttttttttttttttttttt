@@ -11,6 +11,8 @@ const statusSelect = document.getElementById("status-select");
 const ticketDetails = document.getElementById("ticket-details");
 const adminForm = document.getElementById("admin-form");
 const notifications = document.getElementById("notifications");
+const userPill = document.getElementById("user-pill");
+const logoutBtn = document.getElementById("logout-btn");
 
 const pmMessages = document.getElementById("pm-messages");
 const pmForm = document.getElementById("pm-form");
@@ -18,14 +20,40 @@ const pmContextForm = document.getElementById("pm-context-form");
 const pmMe = document.getElementById("pm-me");
 const pmPeer = document.getElementById("pm-peer");
 
-const state = { tickets: [], incidentTypes: [], selectedTicketId: null };
+const state = { tickets: [], incidentTypes: [], selectedTicketId: null, user: null };
+
+function getToken() {
+  return localStorage.getItem("auth_token") || "";
+}
+
+function goLogin() {
+  const hint = localStorage.getItem("auth_user");
+  if (hint) {
+    try {
+      const user = JSON.parse(hint);
+      location.href = user.role === "admin" ? "/admin-login.html" : "/user-login.html";
+      return;
+    } catch {}
+  }
+  location.href = "/user-login.html";
+}
 
 async function requestJson(path, options = {}) {
   const response = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+      ...(options.headers || {}),
+    },
     ...options,
   });
   const body = await response.json().catch(() => ({}));
+  if (response.status === 401 || response.status === 403) {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+    goLogin();
+    throw new Error("Unauthorized");
+  }
   if (!response.ok) throw new Error(body.error || "Request failed");
   return body;
 }
@@ -69,8 +97,7 @@ function connectRealtime() {
   Object.entries(handlers).forEach(([event, handler]) => {
     stream.addEventListener(event, (ev) => {
       try {
-        const data = JSON.parse(ev.data);
-        handler(data);
+        handler(JSON.parse(ev.data));
       } catch {
         addNotification(`Realtime event parse error for ${event}`);
       }
@@ -91,7 +118,9 @@ async function loadIncidentTypes() {
   });
 }
 
-function formatStatus(status) { return status.replaceAll("_", " "); }
+function formatStatus(status) {
+  return status.replaceAll("_", " ");
+}
 
 function renderTickets() {
   ticketList.innerHTML = "";
@@ -149,8 +178,7 @@ function renderChat(messages) {
 }
 
 async function loadMessages(ticketId) {
-  const messages = await requestJson(`/api/tickets/${ticketId}/messages`);
-  renderChat(messages);
+  renderChat(await requestJson(`/api/tickets/${ticketId}/messages`));
 }
 
 async function selectTicket(id) {
@@ -192,21 +220,23 @@ ticketForm.addEventListener("submit", async (event) => {
   const other = formData.get("incidentOther").trim();
   if (other) types.push(other);
 
-  const payload = {
-    reportedDate: formData.get("reportedDate"),
-    reportedTime: formData.get("reportedTime"),
-    riskLevel: formData.get("riskLevel"),
-    summary: formData.get("summary"),
-    incidentTypes: types,
-    sourceIp: formData.get("sourceIp"),
-    destinationIp: formData.get("destinationIp"),
-    compromisedSystems: formData.get("compromisedSystems"),
-    details: formData.get("details"),
-    attachments: Array.from(formData.getAll("attachments")).flat().map((f) => f.name),
-    assignee: formData.get("assignee"),
-  };
+  const ticket = await requestJson("/api/tickets", {
+    method: "POST",
+    body: JSON.stringify({
+      reportedDate: formData.get("reportedDate"),
+      reportedTime: formData.get("reportedTime"),
+      riskLevel: formData.get("riskLevel"),
+      summary: formData.get("summary"),
+      incidentTypes: types,
+      sourceIp: formData.get("sourceIp"),
+      destinationIp: formData.get("destinationIp"),
+      compromisedSystems: formData.get("compromisedSystems"),
+      details: formData.get("details"),
+      attachments: Array.from(formData.getAll("attachments")).flat().map((f) => f.name),
+      assignee: formData.get("assignee"),
+    }),
+  });
 
-  const ticket = await requestJson("/api/tickets", { method: "POST", body: JSON.stringify(payload) });
   ticketForm.reset();
   await loadTickets();
   await selectTicket(ticket.id);
@@ -215,10 +245,10 @@ ticketForm.addEventListener("submit", async (event) => {
 chatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!state.selectedTicketId) return;
-  const formData = new FormData(chatForm);
+  const fd = new FormData(chatForm);
   await requestJson(`/api/tickets/${state.selectedTicketId}/messages`, {
     method: "POST",
-    body: JSON.stringify({ author: formData.get("author"), message: formData.get("message") }),
+    body: JSON.stringify({ author: fd.get("author"), message: fd.get("message") }),
   });
   chatForm.reset();
   await loadMessages(state.selectedTicketId);
@@ -236,8 +266,7 @@ statusSelect.addEventListener("change", async (event) => {
 
 adminForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const formData = new FormData(adminForm);
-  const name = formData.get("newType").trim();
+  const name = new FormData(adminForm).get("newType").trim();
   if (!name) return;
   await requestJson("/api/incident-types", { method: "POST", body: JSON.stringify({ name }) });
   adminForm.reset();
@@ -247,9 +276,9 @@ adminForm.addEventListener("submit", async (event) => {
 pmContextForm.addEventListener("change", loadPrivateMessages);
 pmForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const formData = new FormData(pmForm);
-  const sender = formData.get("sender").trim();
-  const message = formData.get("message").trim();
+  const fd = new FormData(pmForm);
+  const sender = fd.get("sender").trim();
+  const message = fd.get("message").trim();
   const recipient = pmPeer.value.trim();
   if (!sender || !recipient || !message) return;
   await requestJson("/api/private-messages", {
@@ -260,16 +289,23 @@ pmForm.addEventListener("submit", async (event) => {
   await loadPrivateMessages();
 });
 
+logoutBtn.addEventListener("click", () => {
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("auth_user");
+  goLogin();
+});
+
 async function init() {
-  try {
-    await loadIncidentTypes();
-    await loadTickets();
-    await loadPrivateMessages();
-    connectRealtime();
-    if (state.tickets.length > 0) await selectTicket(state.tickets[0].id);
-  } catch (error) {
-    ticketList.innerHTML = `<p class="empty-state">${error.message}</p>`;
-  }
+  if (!getToken()) return goLogin();
+  state.user = await requestJson("/api/auth/me");
+  userPill.textContent = `Signed in: ${state.user.username} (${state.user.role})`;
+  await loadIncidentTypes();
+  await loadTickets();
+  await loadPrivateMessages();
+  connectRealtime();
+  if (state.tickets.length > 0) await selectTicket(state.tickets[0].id);
 }
 
-init();
+init().catch((err) => {
+  ticketList.innerHTML = `<p class="empty-state">${err.message}</p>`;
+});

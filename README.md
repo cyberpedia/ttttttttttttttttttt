@@ -1,23 +1,40 @@
-# Cyber Incident Ticketing System (Full Stack)
+# Cyber Incident Ticketing System (PostgreSQL + Realtime)
 
-Production-style cyber incident ticketing system with:
-- Ticket creation and auto ID format `MM-YYYY-###`
-- Incident checklist + admin-configurable incident types
-- Ticket lifecycle updates (open/in review/resolved/closed/reopened)
-- Ticket thread chat
-- **Private messages** between admins/moderators/supports and users/teams
-- **Real-time notifications** via Server-Sent Events when tickets/messages/status updates/private messages occur
+This implementation is full-stack with:
+- PostgreSQL database (requested)
+- Admin and user login pages
+- Ticket creation / lifecycle / chat
+- Admin configurable incident types
+- Private messaging (admin/mod/support ↔ users/teams)
+- Realtime notifications via SSE
 
-## Stack
+## Login pages
 
-- Front-end: HTML, CSS, Vanilla JavaScript
-- Back-end: Python standard library (`http.server`)
-- Database: SQLite
-- Realtime: Server-Sent Events (SSE)
+- Admin login: `/admin-login.html`
+- User login: `/user-login.html`
+
+Default seeded accounts:
+- admin / admin123
+- user / user123
 
 ## Requirements
 
 - Python 3.10+
+- PostgreSQL 13+
+
+## Configure database
+
+Set `DATABASE_URL` (or use default):
+
+```bash
+export DATABASE_URL='postgresql://postgres:postgres@localhost:5432/cybertickets'
+```
+
+## Install
+
+```bash
+python -m pip install -r requirements.txt
+```
 
 ## Run
 
@@ -28,19 +45,5 @@ python server.py
 Open:
 
 ```text
-http://127.0.0.1:8000/
+http://127.0.0.1:8000/user-login.html
 ```
-
-## API highlights
-
-- `GET/POST /api/incident-types`
-- `GET/POST /api/tickets`
-- `PATCH /api/tickets/{id}`
-- `GET/POST /api/tickets/{id}/messages`
-- `GET/POST /api/private-messages`
-- `GET /api/stream` (SSE realtime events)
-
-## Data
-
-- SQLite database file: `tickets.db`
-

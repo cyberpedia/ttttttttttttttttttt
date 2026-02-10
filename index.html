@@ -13,7 +13,7 @@
         <h1>Cyber Incident Ticketing System</h1>
         <p class="subhead">Create, triage, and resolve cyber incidents with structured workflows.</p>
       </div>
-      <div class="status-pill">Real-time event stream enabled</div>
+      <div><div class="status-pill" id="user-pill">Real-time event stream enabled</div><button id="logout-btn" style="margin-top:8px;">Logout</button></div>
     </header>
 
     <section class="panel">
@@ -143,7 +143,7 @@
           <label>Add incident type <input type="text" name="newType" placeholder="e.g., Insider Threat" required /></label>
           <button type="submit">Add Type</button>
         </form>
-        <div class="helper">Incident types are persisted in SQLite.</div>
+        <div class="helper">Incident types are persisted in PostgreSQL.</div>
       </section>
     </main>
 

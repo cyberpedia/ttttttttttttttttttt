@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>User Login - Cyber Ticketing</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="layout" style="max-width:560px;margin:40px auto;grid-template-columns:1fr;">
+    <section class="panel">
+      <h1>User Login</h1>
+      <p class="subhead">Users/Teams sign in here.</p>
+      <form id="login-form">
+        <label>Username <input name="username" required value="user" /></label>
+        <label>Password <input type="password" name="password" required value="user123" /></label>
+        <button class="primary" type="submit">Login as User</button>
+      </form>
+      <p class="helper">Need admin login? <a href="admin-login.html">Go to Admin Login</a></p>
+      <div id="err" class="empty-state"></div>
+    </section>
+  </main>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: fd.get('username'), password: fd.get('password'), role: 'user'})
+      });
+      const body = await res.json();
+      if (!res.ok) return (document.getElementById('err').textContent = body.error || 'Login failed');
+      localStorage.setItem('auth_token', body.token);
+      localStorage.setItem('auth_user', JSON.stringify(body.user));
+      location.href = '/index.html';
+    });
+  </script>
+</body>
+</html>
