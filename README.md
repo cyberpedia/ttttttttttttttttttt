@@ -1,39 +1,46 @@
-# Cyber Incident Ticketing System
+# Cyber Incident Ticketing System (Full Stack)
 
-A production-style, full-stack prototype for cyber incident ticketing. The app includes structured ticket intake, admin-configurable incident type checklists, status tracking, and responder chat. Data is persisted in a local SQLite database for testing.
+Production-style cyber incident ticketing system with:
+- Ticket creation and auto ID format `MM-YYYY-###`
+- Incident checklist + admin-configurable incident types
+- Ticket lifecycle updates (open/in review/resolved/closed/reopened)
+- Ticket thread chat
+- **Private messages** between admins/moderators/supports and users/teams
+- **Real-time notifications** via Server-Sent Events when tickets/messages/status updates/private messages occur
 
 ## Stack
 
-- Front-end: HTML, CSS, Vanilla JS
-- Back-end: Flask (Python)
+- Front-end: HTML, CSS, Vanilla JavaScript
+- Back-end: Python standard library (`http.server`)
 - Database: SQLite
+- Realtime: Server-Sent Events (SSE)
 
 ## Requirements
 
 - Python 3.10+
 
-## Setup
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-## Run locally
+## Run
 
 ```bash
 python server.py
 ```
 
-Then open:
+Open:
 
-```
+```text
 http://127.0.0.1:8000/
 ```
 
-## Notes
+## API highlights
 
-- Data is stored in `tickets.db` in the project root.
-- This demo supports creating, updating, and chatting on tickets with a single local user.
+- `GET/POST /api/incident-types`
+- `GET/POST /api/tickets`
+- `PATCH /api/tickets/{id}`
+- `GET/POST /api/tickets/{id}/messages`
+- `GET/POST /api/private-messages`
+- `GET /api/stream` (SSE realtime events)
+
+## Data
+
+- SQLite database file: `tickets.db`
 

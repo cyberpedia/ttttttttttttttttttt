@@ -1,6 +1,6 @@
 const ticketForm = document.getElementById("ticket-form");
 const ticketList = document.getElementById("ticket-list");
-const incidentTypes = document.getElementById("incident-types");
+const incidentTypesEl = document.getElementById("incident-types");
 const chatPanel = document.getElementById("chat-panel");
 const chatPlaceholder = document.getElementById("chat-placeholder");
 const chatMessages = document.getElementById("chat-messages");
@@ -10,109 +10,119 @@ const chatTicketSummary = document.getElementById("chat-ticket-summary");
 const statusSelect = document.getElementById("status-select");
 const ticketDetails = document.getElementById("ticket-details");
 const adminForm = document.getElementById("admin-form");
+const notifications = document.getElementById("notifications");
 
-const state = {
-  tickets: [],
-  incidentTypes: [],
-  selectedTicketId: null,
-};
+const pmMessages = document.getElementById("pm-messages");
+const pmForm = document.getElementById("pm-form");
+const pmContextForm = document.getElementById("pm-context-form");
+const pmMe = document.getElementById("pm-me");
+const pmPeer = document.getElementById("pm-peer");
+
+const state = { tickets: [], incidentTypes: [], selectedTicketId: null };
 
 async function requestJson(path, options = {}) {
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || "Request failed");
-  }
-  return response.json();
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || "Request failed");
+  return body;
+}
+
+function addNotification(text) {
+  const node = document.createElement("div");
+  node.className = "chat-message notification-item";
+  node.innerHTML = `<strong>${new Date().toLocaleString()}</strong>${text}`;
+  notifications.prepend(node);
+}
+
+function connectRealtime() {
+  const stream = new EventSource("/api/stream");
+  const handlers = {
+    ticket_created: async ({ payload }) => {
+      addNotification(`New ticket created: ${payload.ticketCode} (${payload.summary})`);
+      await loadTickets();
+    },
+    ticket_message_created: async ({ payload }) => {
+      addNotification(`Ticket #${payload.ticketId}: new message from ${payload.author}`);
+      if (state.selectedTicketId === payload.ticketId) await loadMessages(payload.ticketId);
+    },
+    ticket_status_changed: async ({ payload }) => {
+      addNotification(`${payload.ticketCode} status changed to ${payload.status.replaceAll("_", " ")}`);
+      await loadTickets();
+    },
+    private_message_created: async ({ payload }) => {
+      addNotification(`Private message: ${payload.sender} → ${payload.recipient}`);
+      const me = pmMe.value.trim();
+      const peer = pmPeer.value.trim();
+      if ((payload.sender === me && payload.recipient === peer) || (payload.sender === peer && payload.recipient === me)) {
+        await loadPrivateMessages();
+      }
+    },
+    incident_type_created: async ({ payload }) => {
+      addNotification(`New incident type added: ${payload.name}`);
+      await loadIncidentTypes();
+    },
+  };
+
+  Object.entries(handlers).forEach(([event, handler]) => {
+    stream.addEventListener(event, (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        handler(data);
+      } catch {
+        addNotification(`Realtime event parse error for ${event}`);
+      }
+    });
+  });
+
+  stream.onerror = () => addNotification("Realtime connection interrupted. Reconnecting...");
 }
 
 async function loadIncidentTypes() {
   state.incidentTypes = await requestJson("/api/incident-types");
-  renderIncidentTypes();
-}
-
-async function loadTickets() {
-  state.tickets = await requestJson("/api/tickets");
-  renderTickets();
-  if (state.tickets.length > 0) {
-    selectTicket(state.tickets[0].id);
-  }
-}
-
-function renderIncidentTypes() {
-  incidentTypes.innerHTML = "";
+  incidentTypesEl.innerHTML = "";
   state.incidentTypes.forEach((type) => {
     const label = document.createElement("label");
     label.className = "chip";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.name = "incidentType";
-    checkbox.value = type;
-    label.appendChild(checkbox);
-    label.append(type);
-    incidentTypes.appendChild(label);
+    label.innerHTML = `<input type="checkbox" name="incidentType" value="${type}" />${type}`;
+    incidentTypesEl.appendChild(label);
   });
 }
 
+function formatStatus(status) { return status.replaceAll("_", " "); }
+
 function renderTickets() {
   ticketList.innerHTML = "";
-  if (state.tickets.length === 0) {
+  if (!state.tickets.length) {
     ticketList.innerHTML = '<p class="empty-state">No tickets yet. Create one to begin tracking.</p>';
     return;
   }
-
   state.tickets
     .slice()
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .forEach((ticket) => {
       const card = document.createElement("article");
-      card.className = "ticket-card";
-      if (ticket.id === state.selectedTicketId) {
-        card.classList.add("active");
-      }
+      card.className = `ticket-card ${ticket.id === state.selectedTicketId ? "active" : ""}`;
       card.innerHTML = `
-        <div class="ticket-meta">
-          <span>${ticket.ticketCode}</span>
-          <span>${new Date(ticket.createdAt).toLocaleString()}</span>
-        </div>
+        <div class="ticket-meta"><span>${ticket.ticketCode}</span><span>${new Date(ticket.createdAt).toLocaleString()}</span></div>
         <strong>${ticket.summary}</strong>
-        <div class="ticket-meta">
-          <span class="tag ${ticket.riskLevel}">${ticket.riskLevel}</span>
-          <span class="tag">${formatStatus(ticket.status)}</span>
-        </div>
-        <div class="ticket-meta">
-          <span>Assigned: ${ticket.assignee}</span>
-          <span>Types: ${ticket.incidentTypes.join(", ") || "None"}</span>
-        </div>
+        <div class="ticket-meta"><span class="tag ${ticket.riskLevel}">${ticket.riskLevel}</span><span class="tag">${formatStatus(ticket.status)}</span></div>
+        <div class="ticket-meta"><span>Assigned: ${ticket.assignee}</span><span>Types: ${ticket.incidentTypes.join(", ") || "None"}</span></div>
       `;
       card.addEventListener("click", () => selectTicket(ticket.id));
       ticketList.appendChild(card);
     });
 }
 
-function formatStatus(status) {
-  return status.replace(/_/g, " ");
-}
-
-async function selectTicket(id) {
-  state.selectedTicketId = id;
-  const ticket = state.tickets.find((item) => item.id === id);
-  if (!ticket) {
-    chatPanel.hidden = true;
-    chatPlaceholder.hidden = false;
-    return;
-  }
-  chatPanel.hidden = false;
-  chatPlaceholder.hidden = true;
-  chatTicketId.textContent = ticket.ticketCode;
-  chatTicketSummary.textContent = `${ticket.summary} — Assigned to ${ticket.assignee}`;
-  statusSelect.value = ticket.status;
-  renderTicketDetails(ticket);
-  await loadMessages(ticket.id);
+async function loadTickets() {
+  state.tickets = await requestJson("/api/tickets");
   renderTickets();
+  if (state.selectedTicketId) {
+    const exists = state.tickets.find((t) => t.id === state.selectedTicketId);
+    if (exists) await selectTicket(state.selectedTicketId);
+  }
 }
 
 function renderTicketDetails(ticket) {
@@ -128,30 +138,59 @@ function renderTicketDetails(ticket) {
   `;
 }
 
+function renderChat(messages) {
+  chatMessages.innerHTML = "";
+  messages.forEach((m) => {
+    const n = document.createElement("div");
+    n.className = "chat-message";
+    n.innerHTML = `<strong>${m.author} · ${new Date(m.timestamp).toLocaleString()}</strong>${m.message}`;
+    chatMessages.appendChild(n);
+  });
+}
+
 async function loadMessages(ticketId) {
   const messages = await requestJson(`/api/tickets/${ticketId}/messages`);
   renderChat(messages);
 }
 
-function renderChat(messages) {
-  chatMessages.innerHTML = "";
-  messages.forEach((entry) => {
-    const message = document.createElement("div");
-    message.className = "chat-message";
-    message.innerHTML = `<strong>${entry.author} · ${new Date(entry.timestamp).toLocaleString()}</strong>${entry.message}`;
-    chatMessages.appendChild(message);
+async function selectTicket(id) {
+  state.selectedTicketId = id;
+  const ticket = state.tickets.find((t) => t.id === id);
+  if (!ticket) {
+    chatPanel.hidden = true;
+    chatPlaceholder.hidden = false;
+    return;
+  }
+  chatPanel.hidden = false;
+  chatPlaceholder.hidden = true;
+  chatTicketId.textContent = ticket.ticketCode;
+  chatTicketSummary.textContent = `${ticket.summary} — Assigned to ${ticket.assignee}`;
+  statusSelect.value = ticket.status;
+  renderTicketDetails(ticket);
+  await loadMessages(ticket.id);
+  renderTickets();
+}
+
+async function loadPrivateMessages() {
+  const me = pmMe.value.trim();
+  const peer = pmPeer.value.trim();
+  if (!me || !peer) return;
+  const messages = await requestJson(`/api/private-messages?me=${encodeURIComponent(me)}&peer=${encodeURIComponent(peer)}`);
+  pmMessages.innerHTML = "";
+  messages.forEach((m) => {
+    const n = document.createElement("div");
+    n.className = "chat-message";
+    n.innerHTML = `<strong>${m.sender} → ${m.recipient} · ${new Date(m.timestamp).toLocaleString()}</strong>${m.message}`;
+    pmMessages.appendChild(n);
   });
 }
 
-async function handleTicketSubmit(event) {
+ticketForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(ticketForm);
-  const incidentSelection = formData.getAll("incidentType");
+  const types = formData.getAll("incidentType");
   const other = formData.get("incidentOther").trim();
-  const types = [...incidentSelection];
-  if (other) {
-    types.push(other);
-  }
+  if (other) types.push(other);
 
   const payload = {
     reportedDate: formData.get("reportedDate"),
@@ -163,89 +202,74 @@ async function handleTicketSubmit(event) {
     destinationIp: formData.get("destinationIp"),
     compromisedSystems: formData.get("compromisedSystems"),
     details: formData.get("details"),
-    attachments: Array.from(formData.getAll("attachments"))
-      .flat()
-      .map((file) => file.name),
+    attachments: Array.from(formData.getAll("attachments")).flat().map((f) => f.name),
     assignee: formData.get("assignee"),
   };
 
-  const ticket = await requestJson("/api/tickets", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-
-  state.tickets.unshift(ticket);
+  const ticket = await requestJson("/api/tickets", { method: "POST", body: JSON.stringify(payload) });
   ticketForm.reset();
-  renderTickets();
+  await loadTickets();
   await selectTicket(ticket.id);
-}
+});
 
-async function handleChatSubmit(event) {
+chatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const ticketId = state.selectedTicketId;
-  if (!ticketId) {
-    return;
-  }
+  if (!state.selectedTicketId) return;
   const formData = new FormData(chatForm);
-  await requestJson(`/api/tickets/${ticketId}/messages`, {
+  await requestJson(`/api/tickets/${state.selectedTicketId}/messages`, {
     method: "POST",
-    body: JSON.stringify({
-      author: formData.get("author"),
-      message: formData.get("message"),
-    }),
+    body: JSON.stringify({ author: formData.get("author"), message: formData.get("message") }),
   });
   chatForm.reset();
-  await loadMessages(ticketId);
-}
+  await loadMessages(state.selectedTicketId);
+});
 
-async function handleStatusChange(event) {
-  const ticketId = state.selectedTicketId;
-  if (!ticketId) {
-    return;
-  }
-  const updated = await requestJson(`/api/tickets/${ticketId}`, {
+statusSelect.addEventListener("change", async (event) => {
+  if (!state.selectedTicketId) return;
+  await requestJson(`/api/tickets/${state.selectedTicketId}`, {
     method: "PATCH",
     body: JSON.stringify({ status: event.target.value }),
   });
-  const index = state.tickets.findIndex((ticket) => ticket.id === ticketId);
-  if (index >= 0) {
-    state.tickets[index] = updated;
-  }
-  renderTickets();
-  await loadMessages(ticketId);
-}
+  await loadTickets();
+  await loadMessages(state.selectedTicketId);
+});
 
-async function handleAdminSubmit(event) {
+adminForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(adminForm);
-  const newType = formData.get("newType").trim();
-  if (!newType) {
-    return;
-  }
-  try {
-    await requestJson("/api/incident-types", {
-      method: "POST",
-      body: JSON.stringify({ name: newType }),
-    });
-    adminForm.reset();
-    await loadIncidentTypes();
-  } catch (error) {
-    alert(error.message);
-  }
-}
+  const name = formData.get("newType").trim();
+  if (!name) return;
+  await requestJson("/api/incident-types", { method: "POST", body: JSON.stringify({ name }) });
+  adminForm.reset();
+  await loadIncidentTypes();
+});
+
+pmContextForm.addEventListener("change", loadPrivateMessages);
+pmForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(pmForm);
+  const sender = formData.get("sender").trim();
+  const message = formData.get("message").trim();
+  const recipient = pmPeer.value.trim();
+  if (!sender || !recipient || !message) return;
+  await requestJson("/api/private-messages", {
+    method: "POST",
+    body: JSON.stringify({ sender, recipient, targetType: "user", message }),
+  });
+  pmForm.reset();
+  await loadPrivateMessages();
+});
 
 async function init() {
   try {
     await loadIncidentTypes();
     await loadTickets();
+    await loadPrivateMessages();
+    connectRealtime();
+    if (state.tickets.length > 0) await selectTicket(state.tickets[0].id);
   } catch (error) {
     ticketList.innerHTML = `<p class="empty-state">${error.message}</p>`;
   }
 }
-
-ticketForm.addEventListener("submit", handleTicketSubmit);
-chatForm.addEventListener("submit", handleChatSubmit);
-statusSelect.addEventListener("change", handleStatusChange);
-adminForm.addEventListener("submit", handleAdminSubmit);
 
 init();
